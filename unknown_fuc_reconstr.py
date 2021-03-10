@@ -2,6 +2,7 @@
 
 
 import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 import sklearn.preprocessing as pre
 from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.model_selection import train_test_split
@@ -30,23 +31,22 @@ sampled_z = hidden_fvec(rX, rY).ravel().reshape(-1, 1)
 randxy = np.concatenate((rX.ravel().reshape(-1, 1), rY.ravel().reshape(-1, 1)), axis=1)
 
 
-'''scaling and splitting for neural network'''
-
-
-scaler_xy = pre.MinMaxScaler()
-scaler_z = pre.MinMaxScaler()
-scaled_xy = scaler_xy.fit_transform(randxy)
-scaled_z = scaler_z.fit_transform(sampled_z)
-
-nxy_train, nxy_test, nz_train, nz_test = train_test_split(
-    scaled_xy, scaled_z, test_size=0.33, random_state=123)
-
-
-'''splitting for tree'''
+'''scaling and splitting'''
 
 
 xy_train, xy_test, z_train, z_test = train_test_split(
     randxy, sampled_z, test_size=0.33, random_state=123)
+
+scaler_xy = pre.MinMaxScaler()
+scaler_z = pre.MinMaxScaler()
+scaled_xy_train = scaler_xy.fit_transform(xy_train)
+scaled_z_train = scaler_z.fit_transform(z_train)
+scaled_xy_test = scaler_xy.transform(xy_test)
+scaled_z_test = scaler_z.transform(z_test)
+
+'''splitting for tree validation'''
+
+
 xy_val = xy_train[:100, :]
 z_val = z_train[:100, :]
 xy_train = xy_train[100:, :]
@@ -77,17 +77,22 @@ print(f'tree r2: {r2score}, mse: {mse}')
 initializer = keras.initializers.RandomUniform(minval=-1., maxval=1.)
 n_model = models.Sequential()
 n_model.add(keras.Input(shape=(2,)))
-n_model.add(layers.Dense(20, activation='selu', kernel_initializer=initializer))
-n_model.add(layers.Dense(30, activation='selu', kernel_initializer=initializer))
+n_model.add(layers.Dense(40, activation='relu', kernel_initializer=initializer))
+n_model.add(layers.Dense(30, activation='relu', kernel_initializer=initializer))
 n_model.add(layers.Dense(1, activation='sigmoid'))
 n_model.compile(loss='mse', optimizer='adam')
-n_model.fit(xy_train, z_train, batch_size=2, epochs=500, validation_split=0.2)
+history = n_model.fit(xy_train, z_train, batch_size=2, epochs=500, validation_split=0.2)
 model.save('neural_approx_model')
 
 z_pred = model.predict(xy_test)
 r2score = r2_score(z_test, z_pred)
 mse = mean_squared_error(z_test, z_pred)
 print(f'neural r2: {r2score}, mse: {mse}')
+
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
 
 
 '''re-creating hidden function shape'''
