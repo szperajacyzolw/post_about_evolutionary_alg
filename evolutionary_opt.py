@@ -1,3 +1,6 @@
+'''Tekne Consulting blogpost --- teknecons.com'''
+
+
 import numpy as np
 from scipy import optimize as opt
 from deap import base
